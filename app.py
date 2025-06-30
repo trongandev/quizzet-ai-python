@@ -2,11 +2,21 @@ import os
 import uvicorn
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from docx import Document
 import re
 from io import BytesIO
 import gc
 app = FastAPI()
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 def has_color(run):
     return run.font.color.rgb is not None
@@ -31,6 +41,7 @@ def process_quiz_format(doc):
             question_text = re.sub(r"^Câu\s+\d+\s*[:.\s]\s*", "", question_text)
             
             question_data = {
+                "id": len(data) + 1,  # Auto-increment ID
                 "question": question_text,
                 "answers": [],
                 "correct": ""
@@ -55,7 +66,7 @@ def process_quiz_format(doc):
                     is_correct = False
                     for option_run in option_paragraph.runs:
                         if has_bold(option_run) or has_highlight_color(option_run) or has_color(option_run):
-                            correct_answer = i  # Use index position (0, 1, 2, 3)
+                            correct_answer = str(i)  # Use index position (0, 1, 2, 3)
                             is_correct = True
                             break
                             
