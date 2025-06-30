@@ -3,13 +3,13 @@ from flask_cors import CORS
 from docx import Document
 import re
 import os
-import tempfile
 import uuid
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from queue import Queue
 import logging
+from io import BytesIO
 
 app = Flask(__name__)
 CORS(app)
@@ -164,7 +164,7 @@ def process_qa_format(doc):
     
     return data
 
-def process_document_async(task_id, temp_path, process_type):
+def process_document_async(task_id, file_data, process_type):
     """Process document asynchronously"""
     try:
         logger.info(f"Starting processing task {task_id}")
@@ -177,8 +177,8 @@ def process_document_async(task_id, temp_path, process_type):
                 "progress": 0
             }
         
-        # Process document
-        doc = Document(temp_path)
+        # Process document from memory
+        doc = Document(BytesIO(file_data))
         
         if process_type == "quiz":
             result = process_quiz_format(doc)
@@ -208,15 +208,6 @@ def process_document_async(task_id, temp_path, process_type):
             }
             if task_id in active_tasks:
                 del active_tasks[task_id]
-    
-    finally:
-        # Clean up temporary file
-        try:
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-                logger.info(f"Cleaned up temp file: {temp_path}")
-        except Exception as e:
-            logger.error(f"Error cleaning up temp file {temp_path}: {str(e)}")
 
 def cleanup_old_results():
     """Clean up old results to prevent memory leaks"""
@@ -231,24 +222,7 @@ def cleanup_old_results():
             del task_results[task_id]
             logger.info(f"Cleaned up expired task result: {task_id}")
 
-def cleanup_temp_files():
-    """Clean up old temporary files on startup"""
-    try:
-        temp_dir = os.path.join(os.getcwd(), 'temp')
-        if os.path.exists(temp_dir):
-            for filename in os.listdir(temp_dir):
-                if filename.endswith('.docx'):
-                    file_path = os.path.join(temp_dir, filename)
-                    try:
-                        os.remove(file_path)
-                        logger.info(f"Cleaned up old temp file: {file_path}")
-                    except Exception as e:
-                        logger.error(f"Error cleaning up {file_path}: {str(e)}")
-    except Exception as e:
-        logger.error(f"Error during temp file cleanup: {str(e)}")
 
-# Clean up old temp files on startup
-cleanup_temp_files()
 
 # Background thread for cleanup
 def cleanup_worker():
@@ -293,21 +267,15 @@ def process_document_endpoint(process_type):
         # Generate unique task ID
         task_id = str(uuid.uuid4())
         
-        # Create temporary file in working directory instead of system temp
-        temp_dir = os.path.join(os.getcwd(), 'temp')
-        os.makedirs(temp_dir, exist_ok=True)
-        temp_filename = f"{task_id}.docx"
-        temp_path = os.path.join(temp_dir, temp_filename)
-        
-        # Save uploaded file
-        file.save(temp_path)
+        # Read file data into memory
+        file_data = file.read()
         
         # Check if client wants synchronous or asynchronous processing
         async_mode = request.args.get('async', 'false').lower() == 'true'
         
         if async_mode:
             # Submit to thread pool for async processing
-            executor.submit(process_document_async, task_id, temp_path, process_type)
+            executor.submit(process_document_async, task_id, file_data, process_type)
             
             return jsonify({
                 "task_id": task_id,
@@ -318,22 +286,16 @@ def process_document_endpoint(process_type):
         else:
             # Process synchronously (original behavior)
             try:
-                doc = Document(temp_path)
+                doc = Document(BytesIO(file_data))
                 
                 if process_type == "quiz":
                     result = process_quiz_format(doc)
                 else:  # qa
                     result = process_qa_format(doc)
                 
-                # Clean up temporary file
-                os.remove(temp_path)
-                
                 return jsonify(result)
                 
             except Exception as e:
-                # Clean up temporary file on error
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
                 raise e
         
     except Exception as e:
@@ -384,7 +346,7 @@ def health_check():
 def home():
     """Home endpoint with API documentation"""
     return jsonify({
-        "message": "DOCX to JSON Converter API with Async Support",
+        "message": "DOCX to JSON Converter API with Memory Processing",
         "endpoints": {
             "/api/quiz": {
                 "method": "POST",
@@ -413,6 +375,11 @@ def home():
             "sync_request": "POST /api/quiz with file",
             "async_request": "POST /api/quiz?async=true with file",
             "check_status": "GET /api/status/{task_id}"
+        },
+        "features": {
+            "memory_processing": "Files are processed in memory without saving to disk",
+            "railway_compatible": "Optimized for Railway deployment",
+            "async_support": "Supports both sync and async processing"
         }
     })
 
