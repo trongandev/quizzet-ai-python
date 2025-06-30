@@ -258,6 +258,23 @@ def test_endpoint():
         "status": "success",
         "message": "API is working correctly",
         "method": request.method,
+        "timestamp": time.time(),
+        "headers": dict(request.headers),
+        "url": request.url
+    })
+
+@app.route('/debug', methods=['GET', 'POST', 'OPTIONS'])
+def debug_endpoint():
+    """Debug endpoint to check all request details"""
+    return jsonify({
+        "method": request.method,
+        "url": request.url,
+        "path": request.path,
+        "headers": dict(request.headers),
+        "args": dict(request.args),
+        "form": dict(request.form),
+        "files": list(request.files.keys()),
+        "content_type": request.content_type,
         "timestamp": time.time()
     })
 
