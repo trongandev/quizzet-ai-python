@@ -12,7 +12,7 @@ import logging
 from io import BytesIO
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins="*", methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Authorization"])
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -233,14 +233,54 @@ def cleanup_worker():
 cleanup_thread = threading.Thread(target=cleanup_worker, daemon=True)
 cleanup_thread.start()
 
-@app.route('/api/quiz', methods=['POST'])
+@app.errorhandler(405)
+def method_not_allowed(error):
+    return jsonify({
+        "error": "Method Not Allowed",
+        "message": "The method is not allowed for the requested URL",
+        "allowed_methods": ["GET", "POST"],
+        "url": request.url,
+        "method": request.method
+    }), 405
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        "error": "Not Found",
+        "message": "The requested URL was not found",
+        "url": request.url
+    }), 404
+
+@app.route('/test', methods=['GET', 'POST'])
+def test_endpoint():
+    """Simple test endpoint"""
+    return jsonify({
+        "status": "success",
+        "message": "API is working correctly",
+        "method": request.method,
+        "timestamp": time.time()
+    })
+
+@app.route('/api/quiz', methods=['POST', 'GET'])
 def convert_quiz():
     """API endpoint for quiz format (1 question, 4 answers with correct answer marked)"""
+    if request.method == 'GET':
+        return jsonify({
+            "message": "Quiz API endpoint is working",
+            "method": "POST",
+            "description": "Upload a .docx file to convert to quiz format"
+        })
     return process_document_endpoint("quiz")
 
-@app.route('/api/qa', methods=['POST'])
+@app.route('/api/qa', methods=['POST', 'GET'])
 def convert_qa():
     """API endpoint for Q&A format (1 question, 1 answer)"""
+    if request.method == 'GET':
+        return jsonify({
+            "message": "Q&A API endpoint is working", 
+            "method": "POST",
+            "description": "Upload a .docx file to convert to Q&A format"
+        })
     return process_document_endpoint("qa")
 
 def process_document_endpoint(process_type):
@@ -384,4 +424,5 @@ def home():
     })
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5999, threaded=True)
+    port = int(os.environ.get('PORT', 5999))
+    app.run(debug=False, host='0.0.0.0', port=port, threaded=True)
