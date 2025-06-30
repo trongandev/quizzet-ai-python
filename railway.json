@@ -6,7 +6,7 @@
     "deploy": {
         "runtime": "V2",
         "numReplicas": 1,
-        "startCommand": "gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 index:app",
+        "startCommand": "gunicorn --bind 0.0.0.0:$PORT app",
         "sleepApplication": false,
         "multiRegionConfig": {
             "asia-southeast1-eqsg3a": {
