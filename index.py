@@ -81,7 +81,7 @@ def process_quiz_format(doc):
                     is_correct = False
                     for option_run in option_paragraph.runs:
                         if has_bold(option_run) or has_highlight_color(option_run) or has_color(option_run):
-                            correct_answer = option_text
+                            correct_answer = i  # Use index position (0, 1, 2, 3)
                             is_correct = True
                             break
                             
@@ -214,6 +214,7 @@ def process_document_async(task_id, temp_path, process_type):
         try:
             if os.path.exists(temp_path):
                 os.remove(temp_path)
+                logger.info(f"Cleaned up temp file: {temp_path}")
         except Exception as e:
             logger.error(f"Error cleaning up temp file {temp_path}: {str(e)}")
 
@@ -229,6 +230,25 @@ def cleanup_old_results():
         for task_id in expired_tasks:
             del task_results[task_id]
             logger.info(f"Cleaned up expired task result: {task_id}")
+
+def cleanup_temp_files():
+    """Clean up old temporary files on startup"""
+    try:
+        temp_dir = os.path.join(os.getcwd(), 'temp')
+        if os.path.exists(temp_dir):
+            for filename in os.listdir(temp_dir):
+                if filename.endswith('.docx'):
+                    file_path = os.path.join(temp_dir, filename)
+                    try:
+                        os.remove(file_path)
+                        logger.info(f"Cleaned up old temp file: {file_path}")
+                    except Exception as e:
+                        logger.error(f"Error cleaning up {file_path}: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error during temp file cleanup: {str(e)}")
+
+# Clean up old temp files on startup
+cleanup_temp_files()
 
 # Background thread for cleanup
 def cleanup_worker():
@@ -273,8 +293,9 @@ def process_document_endpoint(process_type):
         # Generate unique task ID
         task_id = str(uuid.uuid4())
         
-        # Create temporary file to save uploaded docx
-        temp_dir = tempfile.gettempdir()
+        # Create temporary file in working directory instead of system temp
+        temp_dir = os.path.join(os.getcwd(), 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
         temp_filename = f"{task_id}.docx"
         temp_path = os.path.join(temp_dir, temp_filename)
         
