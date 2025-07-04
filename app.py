@@ -27,127 +27,185 @@ def has_highlight_color(run):
 def has_bold(run):
     return run.font.bold is not None
 
-def process_quiz_format(doc):
-    """Process document with quiz format (1 question, 4 answers)"""
-    data = []
+def is_correct_answer(run):
+    """Kiểm tra run có phải đáp án đúng không (bold, highlight, hoặc màu chữ khác)"""
+    return (run.bold is True or 
+            run.font.highlight_color is not None or
+            (run.font.color and run.font.color.rgb is not None))
     
-    paragraphs = iter(doc.paragraphs)
-    for paragraph in paragraphs:
-        if paragraph.text.startswith("Câu") or paragraph.text.endswith("?") or paragraph.text.endswith(":"):
-            # Remove numbering pattern like "1. ", "2. ", etc. at the beginning of the question
-            question_text = paragraph.text.strip()
-            question_text = re.sub(r"^\d+\.\s*", "", question_text)
-            # Also remove "Câu XX: " pattern if present
-            question_text = re.sub(r"^Câu\s+\d+\s*[:.\s]\s*", "", question_text)
+def clean_question_text(question_text):
+    """Xóa các từ thừa trong câu hỏi như 'Câu n:', 'câu n:', 'số:'"""
+    # Loại bỏ các pattern thường gặp ở đầu câu hỏi
+    patterns_to_remove = [
+        r'^Câu\s*\d+[:\.]?\s*',   # Câu 1:, Câu 2., Câu 3
+        r'^câu\s*\d+[:\.]?\s*',   # câu 1:, câu 2., câu 3  
+        r'^\d+[:\.]?\s*',         # 1:, 2., 3
+    ]
+    
+    cleaned_text = question_text
+    for pattern in patterns_to_remove:
+        cleaned_text = re.sub(pattern, '', cleaned_text, flags=re.IGNORECASE).strip()
+    
+    return cleaned_text
+
+def clean_answer_text(answer_text):
+    """Xóa các ký tự thừa trong đáp án như A., B., a), b), 1., 2."""
+    # Loại bỏ các pattern thường gặp ở đầu đáp án
+    patterns_to_remove = [
+        r'^[a-dA-D][\.\)]\s*',    # A., B., a), b)
+        r'^[1-4][\.\)]\s*',       # 1., 2., 1), 2)
+    ]
+    
+    cleaned_text = answer_text
+    for pattern in patterns_to_remove:
+        cleaned_text = re.sub(pattern, '', cleaned_text).strip()
+    
+    return cleaned_text
+
+def format_valid_questions(questions):
+    """Format và làm sạch các câu hỏi hợp lệ"""
+    formatted_questions = []
+    
+    for question in questions:
+        formatted_question = {
+            "question": clean_question_text(question["question"]),
+            "answers": [clean_answer_text(answer) for answer in question["answers"]],
+            "correct": question["correct"]
+        }
+        formatted_questions.append(formatted_question)
+    
+    return formatted_questions
+
+# def process_quiz_format(doc):
+#     """Process document with quiz format (1 question, 4 answers)"""
+#     data = []
+    
+#     paragraphs = iter(doc.paragraphs)
+#     for paragraph in paragraphs:
+#         if paragraph.text.startswith("Câu") or paragraph.text.endswith("?") or paragraph.text.endswith(":"):
+#             # Remove numbering pattern like "1. ", "2. ", etc. at the beginning of the question
+#             question_text = paragraph.text.strip()
+#             question_text = re.sub(r"^\d+\.\s*", "", question_text)
+#             # Also remove "Câu XX: " pattern if present
+#             question_text = re.sub(r"^Câu\s+\d+\s*[:.\s]\s*", "", question_text)
             
-            question_data = {
-                "id": len(data) + 1,  # Auto-increment ID
-                "question": question_text,
-                "answers": [],
-                "correct": ""
-            }
+#             question_data = {
+#                 "id": len(data) + 1,  # Auto-increment ID
+#                 "question": question_text,
+#                 "answers": [],
+#                 "correct": ""
+#             }
 
-            options = []
-            correct_answer = ""
+#             options = []
+#             correct_answer = ""
 
-            for i in range(4):  # Assuming 4 options for each question
-                try:
-                    option_paragraph = next(paragraphs)
-                    if not option_paragraph.text.strip():  # Skip empty paragraphs
-                        continue
+#             for i in range(4):  # Assuming 4 options for each question
+#                 try:
+#                     option_paragraph = next(paragraphs)
+#                     if not option_paragraph.text.strip():  # Skip empty paragraphs
+#                         continue
                         
-                    # Clean up option text (remove A., B., etc. prefixes)
-                    option_text = option_paragraph.text.strip()
-                    option_text = re.sub(r"^[A-D]\.\s*", "", option_text)
+#                     # Clean up option text (remove A., B., etc. prefixes)
+#                     option_text = option_paragraph.text.strip()
+#                     option_text = re.sub(r"^[A-D]\.\s*", "", option_text)
                     
-                    options.append(option_text)
+#                     options.append(option_text)
                     
-                    # Check if this option is marked as correct (bold or highlighted)
-                    is_correct = False
-                    for option_run in option_paragraph.runs:
-                        if has_bold(option_run) or has_highlight_color(option_run) or has_color(option_run):
-                            correct_answer = str(i)  # Use index position (0, 1, 2, 3)
-                            is_correct = True
-                            break
+#                     # Check if this option is marked as correct (bold or highlighted)
+#                     is_correct = False
+#                     for option_run in option_paragraph.runs:
+#                         if has_bold(option_run) or has_highlight_color(option_run) or has_color(option_run):
+#                             correct_answer = str(i)  # Use index position (0, 1, 2, 3)
+#                             is_correct = True
+#                             break
                             
-                except StopIteration:
-                    break
+#                 except StopIteration:
+#                     break
 
-            question_data["answers"] = options
-            question_data["correct"] = correct_answer
-            data.append(question_data)
+#             question_data["answers"] = options
+#             question_data["correct"] = correct_answer
+#             data.append(question_data)
     
-    return data
+#     return data
 
-def process_qa_format(doc):
+def process_quiz_format(doc):
     """Process document with Q&A format (1 question, 1 answer)"""
-    data = []
-    
+    quiz_data = []
     current_question = None
-    current_answer = None
-    i = 0
-    paragraphs = list(doc.paragraphs)
-
-    while i < len(paragraphs):
-        text = paragraphs[i].text.strip()
-        if not text:  # Skip empty paragraphs
-            i += 1
+    
+    # Patterns để nhận diện câu hỏi và đáp án
+    question_patterns = [
+        r'^(Câu\s*\d+[:\.]?)\s*(.*)',  # Câu 1., Câu 2:
+        r'^(\d+[:\.])\s*(.*)',          # 1., 2:
+        r'^(.*)\?$'                     # Kết thúc bằng ?
+    ]
+    
+    answer_pattern = r'^([a-dA-D][\.\)])\s*(.*)'  # a., B), c.
+    
+    for para in doc.paragraphs:
+        text = para.text.strip()
+        if not text:
             continue
-            
-        # Check if this is a question (starts with number or ends with ? or :)
-        if text.endswith("?") or text.endswith(":") or re.match(r"^\d+\.", text):
-            # Save previous question if exists
-            if current_question and current_answer:
-                data.append({
-                    "question": current_question,
-                    "answer": current_answer
-                })
-                
-            # Start new question - remove numbering
-            current_question = text
-            # Remove numbering pattern like "1. ", "2. ", etc.
-            current_question = re.sub(r"^\d+\.\s*", "", current_question)
-            # Also remove "Câu XX: " pattern if present
-            current_question = re.sub(r"^Câu\s+\d+\s*[:.\s]\s*", "", current_question)
-            
-            # Look ahead for the answer
-            current_answer = ""
-            j = i + 1
-            while j < len(paragraphs):
-                answer_text = paragraphs[j].text.strip()
-                if not answer_text:  # Skip empty paragraphs
-                    j += 1
-                    continue
-                
-                if answer_text.endswith("?") or answer_text.endswith(":") or re.match(r"^\d+\.", answer_text):
-                    # This is the next question, stop here
-                    break
-                
-                # This is the answer
-                current_answer = answer_text
-                # Check if text has formatting that indicates it's a correct answer
-                for run in paragraphs[j].runs:
-                    if has_bold(run) or has_highlight_color(run) or has_color(run):
-                        current_answer = answer_text
-                
-                # Move the main index to skip the answer we just processed
-                i = j
-                break
-                
-            if not current_answer and j < len(paragraphs):
-                # If we didn't find a suitable answer, use the next non-empty paragraph
-                current_answer = "No answer provided"
         
-        i += 1
+        # Tách paragraph thành nhiều dòng nếu có xuống dòng
+        lines = text.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Kiểm tra xem có phải câu hỏi không
+            is_question = any(re.match(pattern, line, re.IGNORECASE) for pattern in question_patterns)
+            
+            if is_question:
+                # Lưu câu hỏi trước đó nếu có
+                if current_question:
+                    quiz_data.append(current_question)
+                
+                # Tạo câu hỏi mới
+                current_question = {
+                    "question": line,
+                    "answers": [],
+                    "correct": -1  # -1 nghĩa là chưa có đáp án đúng
+                }
+            
+            # Kiểm tra xem có phải đáp án không
+            elif current_question:
+                match = re.match(answer_pattern, line, re.DOTALL)
+                if match:
+                    answer_text = match.group(2).strip()
+                    current_question["answers"].append(line)
+                    
+                    # Kiểm tra format của đáp án để xem có phải đáp án đúng không
+                    for run in para.runs:
+                        if answer_text in run.text and is_correct_answer(run):
+                            # Lưu index của đáp án đúng (bắt đầu từ 0)
+                            current_question["correct"] = len(current_question["answers"]) - 1
+                            break
     
-    # Add the last question
-    if current_question and current_answer:
-        data.append({
-            "question": current_question,
-            "answer": current_answer,
-        })
+    # Thêm câu hỏi cuối cùng
+    if current_question:
+        quiz_data.append(current_question)
     
-    return data
+    # Sắp xếp câu hỏi: câu hỏi có đáp án và correct lên trước, câu hỏi thiếu thông tin xuống cuối
+    valid_questions = []
+    invalid_questions = []
+    
+    for question in quiz_data:
+        # Kiểm tra câu hỏi có đầy đủ thông tin không (có answers và correct >= 0)
+        if question["answers"] and question["correct"] >= 0:
+            valid_questions.append(question)
+        else:
+            invalid_questions.append(question)
+    
+    # Format và làm sạch các câu hỏi hợp lệ
+    formatted_valid_questions = format_valid_questions(valid_questions)
+    
+    # Kết hợp lại: câu hỏi hợp lệ đã format trước, câu hỏi thiếu thông tin sau
+    sorted_quiz_data = formatted_valid_questions + invalid_questions
+    
+    return sorted_quiz_data
 
 @app.get("/")
 async def read_root():
@@ -187,32 +245,32 @@ async def convert_quiz(file: UploadFile = File(...)):
         gc.collect()
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
-@app.post('/api/qa')
-async def convert_qa(file: UploadFile = File(...)):
-    """API endpoint for Q&A format (1 question, 1 answer)"""
-    try:
-        # Validate file type
-        if not file.filename.endswith('.docx'):
-            raise HTTPException(status_code=400, detail="File must be a .docx file")
+# @app.post('/api/qa')
+# async def convert_qa(file: UploadFile = File(...)):
+#     """API endpoint for Q&A format (1 question, 1 answer)"""
+#     try:
+#         # Validate file type
+#         if not file.filename.endswith('.docx'):
+#             raise HTTPException(status_code=400, detail="File must be a .docx file")
         
-        # Read file content into memory
-        file_content = await file.read()
+#         # Read file content into memory
+#         file_content = await file.read()
         
-        # Process document from memory
-        doc = Document(BytesIO(file_content))
-        result = process_qa_format(doc)
+#         # Process document from memory
+#         doc = Document(BytesIO(file_content))
+#         result = process_qa_format(doc)
         
-        # Clear memory
-        del file_content
-        del doc
-        gc.collect()
+#         # Clear memory
+#         del file_content
+#         del doc
+#         gc.collect()
         
-        return JSONResponse(content=result)
+#         return JSONResponse(content=result)
         
-    except Exception as e:
-        # Clear memory in case of error
-        gc.collect()
-        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
+#     except Exception as e:
+#         # Clear memory in case of error
+#         gc.collect()
+#         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000)) # Mặc định là 8000 cho FastAPI
     uvicorn.run(app, host="0.0.0.0", port=port)
