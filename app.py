@@ -68,6 +68,7 @@ def format_valid_questions(questions):
     
     for question in questions:
         formatted_question = {
+             "id": question["id"],
             "question": clean_question_text(question["question"]),
             "answers": [clean_answer_text(answer) for answer in question["answers"]],
             "correct": question["correct"]
@@ -165,6 +166,7 @@ def process_quiz_format(doc):
                 
                 # Tạo câu hỏi mới
                 current_question = {
+                    "id": len(quiz_data) + 1,  # Auto-increment ID
                     "question": line,
                     "answers": [],
                     "correct": -1  # -1 nghĩa là chưa có đáp án đúng
@@ -197,7 +199,17 @@ def process_quiz_format(doc):
         if question["answers"] and question["correct"] >= 0:
             valid_questions.append(question)
         else:
-            invalid_questions.append(question)
+            # Chuẩn hóa invalid questions - đảm bảo có 4 đáp án trống
+            invalid_question = {
+                "id": question["id"],
+                "question": question["question"],
+                "answers": question["answers"] if question["answers"] else ["", "", "", ""],
+                "correct": question["correct"]
+            }
+            # Nếu có ít hơn 4 đáp án, thêm đáp án trống
+            while len(invalid_question["answers"]) < 4:
+                invalid_question["answers"].append("")
+            invalid_questions.append(invalid_question)
     
     # Format và làm sạch các câu hỏi hợp lệ
     formatted_valid_questions = format_valid_questions(valid_questions)
