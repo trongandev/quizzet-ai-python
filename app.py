@@ -196,7 +196,7 @@ def process_quiz_format(doc):
     
     for question in quiz_data:
         # Kiểm tra câu hỏi có đầy đủ thông tin không (có answers và correct >= 0)
-        if question["answers"] and question["correct"] >= 0:
+        if question["question"] and question["answers"] and question["correct"] >= 0:
             valid_questions.append(question)
         else:
             # Chuẩn hóa invalid questions - đảm bảo có 4 đáp án trống
