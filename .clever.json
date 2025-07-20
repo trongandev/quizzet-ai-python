@@ -1,0 +1,20 @@
+{
+  "apps": [
+    {
+      "app_id": "app_7a6a8016-a5cf-4b8f-b431-e7000cf0fc43",
+      "org_id": "user_0c81ea9d-af2d-45ec-931f-4d16402d4fae",
+      "deploy_url": "https://push-n3-par-clevercloud-customers.services.clever-cloud.com/app_7a6a8016-a5cf-4b8f-b431-e7000cf0fc43.git",
+      "git_ssh_url": "git+ssh://git@push-n3-par-clevercloud-customers.services.clever-cloud.com/app_7a6a8016-a5cf-4b8f-b431-e7000cf0fc43.git",
+      "name": "python",
+      "alias": "python"
+    },
+    {
+      "app_id": "app_638eee08-f375-4d02-bfcb-44cf7b3753e6",
+      "org_id": "user_0c81ea9d-af2d-45ec-931f-4d16402d4fae",
+      "deploy_url": "https://push-n3-par-clevercloud-customers.services.clever-cloud.com/app_638eee08-f375-4d02-bfcb-44cf7b3753e6.git",
+      "git_ssh_url": "git+ssh://git@push-n3-par-clevercloud-customers.services.clever-cloud.com/app_638eee08-f375-4d02-bfcb-44cf7b3753e6.git",
+      "name": "server-python",
+      "alias": "server-python"
+    }
+  ]
+}
