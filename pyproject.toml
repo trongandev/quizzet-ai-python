@@ -1,0 +1,9 @@
+[project]
+name = "fastapiuv"
+version = "0.1.0"
+description = "A simple Fast API demo for uv on Clever Cloud"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.0",
+]
